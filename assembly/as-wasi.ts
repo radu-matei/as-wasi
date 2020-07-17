@@ -880,23 +880,49 @@ export class Environ {
     this.env = [];
     let count_and_size = memory.data(16);
     let ret = environ_sizes_get(count_and_size, count_and_size + 4);
+    Descriptor.Stdout.writeStringLn("ret: " + ret.toString());
     if (ret !== errno.SUCCESS) {
       abort();
     }
     let count = load<usize>(count_and_size, 0);
     let size = load<usize>(count_and_size, sizeof<usize>());
+    Descriptor.Stdout.writeStringLn("count: " + count.toString());
+    Descriptor.Stdout.writeStringLn("size: " + size.toString());
+
     let env_ptrs = changetype<usize>(
       new ArrayBuffer((count as aisize + 1) * sizeof<usize>())
     );
+
     let buf = changetype<usize>(new ArrayBuffer(size as aisize));
+    Descriptor.Stdout.writeStringLn("buf: " + buf.toString());
+    Descriptor.Stdout.writeStringLn("env_ptrs: " + env_ptrs.toString());
+
     if (environ_get(env_ptrs, buf) !== errno.SUCCESS) {
       abort();
     }
+
     for (let i: usize = 0; i < count; i++) {
       let env_ptr = load<usize>(env_ptrs + i * sizeof<usize>());
+      Descriptor.Stdout.writeStringLn("env_ptr: " + env_ptr.toString() + " for i: " + i.toString());
+
+      let strbuf = changetype<ArrayBuffer>(env_ptr);
+      let cap = String.UTF8.decode(strbuf, true);
+      Descriptor.Stdout.writeString("cap: ");
+      Descriptor.Stdout.writeStringLn(cap);
+
+      //Descriptor.Stdout.writeStringLn("env_ptr_" + StringUtils.fromCString(env_ptr));
       let env_ptr_split = StringUtils.fromCString(env_ptr).split("=", 2);
+      //let env_ptr_split = ["ENV_" + i.toString(), "value"];
+      //let env_ptr_split = cap.split("=", 2);
+
       let key = env_ptr_split[0];
-      let value = env_ptr_split[1];
+      let value: string;
+      value = env_ptr_split[1];
+      // if (env_ptr_split.length == 2) {
+      //   value = env_ptr_split[1]
+      // } else {
+      //   value = "";
+      // }
       this.env.push(new EnvironEntry(key, value));
     }
   }
@@ -1014,16 +1040,25 @@ export class Time {
 }
 
 class StringUtils {
-  /**
-   * Returns a native string from a zero-terminated C string
-   * @param cstring
-   * @returns native string
-   */
-  @inline
+  // /**
+  //  * Returns a native string from a zero-terminated C string
+  //  * @param cstring
+  //  * @returns native string
+  //  */
+  // @inline
+  // static fromCString(cstring: usize): string {
+  //   return String.UTF8.decodeUnsafe(cstring, i32.MAX_VALUE, true);
+  // }
+
   static fromCString(cstring: usize): string {
-    return String.UTF8.decodeUnsafe(cstring, i32.MAX_VALUE, true);
+    let size = 0;
+    while (load<u8>(cstring + size) !== 0) {
+      size++;
+    }
+    return String.UTF8.decodeUnsafe(cstring, size);
   }
 }
+
 
 // @ts-ignore: decorator
 @global

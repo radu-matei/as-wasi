@@ -6,7 +6,8 @@
     "asbuild:small": "asc assembly/index.ts -b build/optimized.wasm -t build/optimized.wat --use abort=wasi_abort -O3z ",
     "asbuild:optimized": "asc assembly/index.ts -b build/optimized.wasm -t build/optimized.wat --use abort=wasi_abort -O3",
     "asbuild": "npm run asbuild:optimized",
-    "asbuild-test": "asc test/env.ts -b test/env.wasm -t test/test.wat --use abort=wasi_abort --debug"
+    "asbuild-test": "asc test/env.ts -b test/env.wasm -t test/test.wat --use abort=wasi_abort --debug && wasmtime test/env.wasm --env HOME=home --env abc=def",
+    "asbuild-test2": "asc test/cmdline.ts -b test/cmdline.wasm -t test/cmdline.wat --use abort=wasi_abort --debug"
   },
   "devDependencies": {
     "assemblyscript": "^0.13"
