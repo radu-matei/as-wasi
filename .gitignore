@@ -2,3 +2,6 @@
 build
 node_modules
 temp-docs
+test/sock_server
+test/*.wasm
+test/*.wat
