@@ -50,7 +50,13 @@ import {
   proc_exit,
   random_get,
   rights,
+  sock_connect,
+  sock_recv,
+  sock_send,
+  sock_shutdown,
 } from "bindings/wasi";
+import {__retain} from "rt/pure";
+
 
 type aisize = i32;
 
@@ -769,6 +775,94 @@ export class FileSystem {
   protected static dirfdForPath(path: string): fd {
     return 3;
   }
+}
+
+@global
+export class Socket{
+  fd: Descriptor;
+
+  constructor(ipv4: u32, port: u16){
+    this.fd = new Descriptor(u32.MIN_VALUE);
+    let res = this.connect(ipv4, port);
+    if (!res) {
+      abort();
+    }
+  }
+  
+  connect(ipv4: u32, port: u16): bool {
+    let fd_buf = memory.data(8);
+    let res = sock_connect(ipv4, port, fd_buf);
+    if (res !== errno.SUCCESS) {
+      Console.write("as_wasi::socket::connect: error: " + res.toString());
+      return false
+    }
+
+    this.fd = new Descriptor(load<u32>(fd_buf));
+    return true;
+  }
+
+  write(dataStr: string): void {
+    let s_utf8_buf = String.UTF8.encode(dataStr);
+    let s_utf8_len: usize = s_utf8_buf.byteLength;
+    let iov = memory.data(32);
+    store<u32>(iov, changetype<usize>(s_utf8_buf));
+    store<u32>(iov, s_utf8_len, sizeof<usize>());
+    let lf = memory.data(8);
+    store<u8>(lf, 10);
+    store<u32>(iov, lf, sizeof<usize>() * 2);
+    store<u32>(iov, 1, sizeof<usize>() * 3);
+
+    let written_ptr = memory.data(8);
+    sock_send(this.fd.rawfd, iov, 2, 0, written_ptr);
+  }
+
+  receive(): string {
+    return this.read_to_string();
+  }
+
+  private read_to_string(chunk_size: usize = 4096): string {
+    let total_bytes: number = 0;
+    let data: u8[] = [];
+    let data_partial_len = chunk_size;
+    let data_partial = changetype<usize>(new ArrayBuffer(data_partial_len as aisize));
+    let iov = memory.data(16);
+    store<u32>(iov, data_partial, 0);
+    store<u32>(iov, data_partial_len, sizeof<usize>());
+    let read_ptr = memory.data(8);
+    let read: usize = 0;
+    while (true) {
+      if (sock_recv(this.fd.rawfd, iov, 1, 0, read_ptr, 0) !== errno.SUCCESS) {
+        break;
+      }
+      read = load<usize>(read_ptr);
+      total_bytes += read;
+      if (read <= 0) {
+        break;
+      }
+      for (let i: usize = 0; i < read; i++) {
+        data.push(load<u8>(data_partial + i));
+      }
+    }
+
+    // @ts-ignore: cast
+    return String.UTF8.decodeUnsafe(data.dataStart, data.length);
+  }
+
+    // TODO
+    // so far, we only need write and receive to work with strings.
+
+    // write(data: u8[]): void {
+    //   let data_buf_len = data.length;
+    //   let data_buf_out = changetype<usize>(new ArrayBuffer(data_buf_len));
+    //   // @ts-ignore: cast
+    //   let data_buf_in = changetype<ArrayBufferView>(data).dataStart;
+    //   memory.copy(data_buf_out, data_buf_in, data_buf_len);
+    //   let iov = memory.data(16);
+    //   store<u32>(iov, data_buf_out, 0);
+    //   store<u32>(iov, data_buf_len, sizeof<usize>());
+    //   let written_ptr = memory.data(8);
+    //   sock_send(this.fd.rawfd, iov, data_buf_len, 0, written_ptr);
+    // }
 }
 
 @global
