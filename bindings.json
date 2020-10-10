@@ -43,6 +43,12 @@
         "poll_oneoff": "__wasi_poll_oneoff",
         "proc_exit": "__wasi_proc_exit",
         "random_get": "__wasi_random_get",
-        "sched_yield": "__wasi_sched_yield"
+        "sched_yield": "__wasi_sched_yield",
+
+        "sock_connect": "__wasi_sock_connect",
+        "sock_bind": "__wasi_sock_bind",
+        "sock_recv": "__wasi_sock_recv",
+        "sock_send": "__wasi_sock_send",
+        "sock_shutdown": "__wasi_sock_shutdown"
     }
 }
